@@ -4,7 +4,7 @@ export default function Navbar({ user = { name: "Nozima", role: "Admin" } }) {
   const initials = user.name?.charAt(0).toUpperCase() || "C";
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+    <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100 ">
       {/* Greeting */}
       <div>
         <h1 className="text-xl font-bold text-gray-800 leading-tight">

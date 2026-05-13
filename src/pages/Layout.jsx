@@ -19,7 +19,7 @@ export default function Layout({ children }) {
       >
         <Navbar />
         
-        <main className="flex-1 p-6">
+        <main className="flex-1 py-4">
           {children}
         </main>
       </div>

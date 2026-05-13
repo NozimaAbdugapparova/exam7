@@ -6,6 +6,7 @@ import Layout from "./pages/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./components/Dashboard";
 import Control from "./pages/Control";
+import Teachers from "./pages/Teachers";
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
@@ -30,6 +31,7 @@ export default function App(){
                                             <Route path="/"element={<RootRedirect/>}/>
                                             <Route path="dashboard" element={<Dashboard/>}/>
                                             <Route path="control" element={<Control/>}/>
+                                            <Route path="teachers" element={<Teachers/>}/>
                                         </Routes>
                                     </Layout>
                                 </SidebarProvider>
