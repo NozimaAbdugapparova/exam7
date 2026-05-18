@@ -17,7 +17,7 @@ const navItems = [
   { icon: Home,          label: "Asosiy",      path: "/dashboard" },
   { icon: PiChalkboardTeacher, label: "O'qituvchilar", path: "/teachers"  },
   { icon: Users,         label: "Guruhlar",    path: "/groups"    },
-  { icon: GraduationCap,         label: "Talabalar",   path: "/talabalar" },
+  { icon: GraduationCap,         label: "Talabalar",   path: "/students" },
   {icon: Settings,       label: "Boshqarish",   path: "/control"},
 ];
 
