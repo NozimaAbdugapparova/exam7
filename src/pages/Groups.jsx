@@ -3,16 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Users, BookOpen, GraduationCap, RefreshCw, Loader2, Archive, Plus } from "lucide-react";
 import AddGroupDrawer from "../components/AddGroupDrawer";
 
-const API_URL = "http://localhost:3000/api/groups/all";
+const API_URL          = "http://localhost:3000/api/groups/all";
+const STUDENTS_API_URL = "http://localhost:3000/api/students/all";
 
 const WEEK_DAY_SHORT = {
-  MONDAY: "Du",
-  TUESDAY: "Se",
-  WEDNESDAY: "Chor",
-  THURSDAY: "Pay",
-  FRIDAY: "Ju",
-  SATURDAY: "Sha",
-  SUNDAY: "Ya",
+  MONDAY: "Du", TUESDAY: "Se", WEDNESDAY: "Chor",
+  THURSDAY: "Pay", FRIDAY: "Ju", SATURDAY: "Sha", SUNDAY: "Ya",
 };
 
 function getToken() {
@@ -21,6 +17,18 @@ function getToken() {
     localStorage.getItem("accessToken") ||
     localStorage.getItem("access_token")
   );
+}
+
+async function apiFetch(url) {
+  const token = getToken();
+  const res = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+  if (!res.ok) throw new Error(`Server xatosi: ${res.status}`);
+  return res.json();
 }
 
 function StatCard({ icon: Icon, label, value, avatars }) {
@@ -95,16 +103,15 @@ function StatusToggle({ active }) {
 function GroupRow({ group }) {
   const navigate = useNavigate();
   const startDate = group.start_date ? new Date(group.start_date) : null;
-  const formatDate = (d) => d ? `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}` : "—";
+  const formatDate = (d) => d
+    ? `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`
+    : "—";
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors group">
-      {/* Status */}
       <td className="px-4 py-3">
         <StatusToggle active={true} />
       </td>
-
-      {/* Guruh nomi */}
       <td className="px-4 py-3">
         <span
           onClick={() => navigate(`/groups/${group.id}`)}
@@ -113,8 +120,6 @@ function GroupRow({ group }) {
           {group.name}
         </span>
       </td>
-
-      {/* Kurs */}
       <td className="px-4 py-3">
         {group.courses ? (
           <span className="px-2 py-0.5 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 rounded-full font-medium">
@@ -122,8 +127,6 @@ function GroupRow({ group }) {
           </span>
         ) : "—"}
       </td>
-
-      {/* Davomiyligi */}
       <td className="px-4 py-3">
         <div className="text-xs text-gray-500 leading-relaxed">
           <div className="font-medium text-gray-700">{group.max_student * 9} minut</div>
@@ -131,19 +134,13 @@ function GroupRow({ group }) {
           <div>{group.end_date ? formatDate(new Date(group.end_date)) : "..."}</div>
         </div>
       </td>
-
-      {/* Dars vaqti */}
       <td className="px-4 py-3">
         <div className="text-xs text-gray-700 font-medium">{group.start_time || "—"}</div>
         {group.week_day?.length > 0 && <WeekDays days={group.week_day} />}
       </td>
-
-      {/* Xona */}
       <td className="px-4 py-3">
         <span className="text-xs text-gray-600">{group.rooms?.name || "—"}</span>
       </td>
-
-      {/* O'qituvchi */}
       <td className="px-4 py-3">
         {group.teachers ? (
           <TeacherInitials firstName={group.teachers.first_name} lastName={group.teachers.last_name} />
@@ -151,13 +148,9 @@ function GroupRow({ group }) {
           <span className="text-xs text-gray-400 italic">O'qituvchi yo'q</span>
         )}
       </td>
-
-      {/* Talabalar */}
       <td className="px-4 py-3">
         <span className="text-xs font-semibold text-gray-700">{group.student_count ?? 0}</span>
       </td>
-
-      {/* More */}
       <td className="px-4 py-3">
         <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
           <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
@@ -175,41 +168,48 @@ const COLUMNS = [
 ];
 
 export default function Groups() {
-  const [groups, setGroups]     = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
-  const [activeTab, setActiveTab] = useState("guruhlar");
-  const [refetch, setRefetch]   = useState(0);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [groups,       setGroups]       = useState([]);
+  const [studentCount, setStudentCount] = useState(0);   // ✅ API dan keladi
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [activeTab,    setActiveTab]    = useState("guruhlar");
+  const [refetch,      setRefetch]      = useState(0);
+  const [drawerOpen,   setDrawerOpen]   = useState(false);
 
   useEffect(() => {
-    const fetchGroups = async () => {
+    const fetchAll = async () => {
       try {
         setLoading(true);
         setError(null);
-        const token = getToken();
-        const res = await fetch(API_URL, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-        if (res.status === 401) throw new Error("Tizimga kirish talab qilinadi");
-        if (!res.ok) throw new Error(`Server xatosi: ${res.status}`);
-        const json = await res.json();
-        if (!json.success) throw new Error("Ma'lumot olishda xatolik");
-        setGroups(json.data);
+
+        // Parallel ravishda guruhlar va o'quvchilarni yuklash
+        const [groupsJson, studentsJson] = await Promise.all([
+          apiFetch(API_URL),
+          apiFetch(STUDENTS_API_URL),
+        ]);
+
+        if (!groupsJson.success)   throw new Error("Guruhlar ma'lumotini olishda xatolik");
+        if (!studentsJson.success) throw new Error("O'quvchilar ma'lumotini olishda xatolik");
+
+        setGroups(groupsJson.data);
+
+        // ✅ students array uzunligi yoki API qaytargan count
+        const students = studentsJson.data;
+        setStudentCount(Array.isArray(students) ? students.length : (studentsJson.total ?? 0));
+
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchGroups();
+
+    fetchAll();
   }, [refetch]);
 
-  const teacherCount = new Set(groups.filter(g => g.teachers).map(g => g.teachers.id)).size;
-  const studentCount = groups.reduce((sum, g) => sum + (g.student_count ?? 0), 0);
+  const teacherCount = new Set(
+    groups.filter((g) => g.teachers).map((g) => g.teachers.id)
+  ).size;
 
   return (
     <div className="flex flex-col h-full bg-[#f4f5f7] min-h-screen">
@@ -219,7 +219,8 @@ export default function Groups() {
         <h1 className="text-lg font-bold text-gray-800">Guruhlar</h1>
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+        >
           <Plus size={13} />
           Guruh qo'shish
         </button>
@@ -245,12 +246,12 @@ export default function Groups() {
 
       {/* Stat Cards */}
       <div className="px-5 mb-4 flex gap-4">
-        <StatCard icon={Users} label="Jami guruhlar" value={groups.length} />
-        <StatCard icon={BookOpen} label="O'qituvchilar" value={teacherCount} />
+        <StatCard icon={Users}         label="Jami guruhlar" value={groups.length}  />
+        <StatCard icon={BookOpen}      label="O'qituvchilar" value={teacherCount}   />
         <StatCard
           icon={GraduationCap}
           label="O'quvchilar"
-          value={studentCount}
+          value={studentCount}           // ✅ API dan kelgan son
           avatars={["A", "B"]}
         />
       </div>
@@ -258,10 +259,9 @@ export default function Groups() {
       {/* Table */}
       <div className="mx-5 flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
 
-        {/* Table header toolbar */}
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-end">
           <button
-            onClick={() => setRefetch(n => n + 1)}
+            onClick={() => setRefetch((n) => n + 1)}
             className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
             title="Yangilash"
           >
@@ -279,7 +279,12 @@ export default function Groups() {
         {error && !loading && (
           <div className="flex-1 flex flex-col items-center justify-center py-16 gap-2">
             <span className="text-xs text-red-500 font-medium">{error}</span>
-            <button onClick={() => setRefetch(n => n + 1)} className="text-xs text-blue-600 underline">Qayta urinish</button>
+            <button
+              onClick={() => setRefetch((n) => n + 1)}
+              className="text-xs text-blue-600 underline"
+            >
+              Qayta urinish
+            </button>
           </div>
         )}
 
@@ -316,7 +321,7 @@ export default function Groups() {
       <AddGroupDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onSuccess={() => { setRefetch(n => n + 1); }}
+        onSuccess={() => setRefetch((n) => n + 1)}
       />
     </div>
   );

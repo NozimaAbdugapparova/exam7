@@ -55,9 +55,13 @@ function AttendanceToggle({ present, onChange, loading }) {
     <button
       onClick={onChange}
       disabled={loading}
-      className={`relative w-11 h-6 rounded-full transition-colors ${present ? "bg-green-400" : "bg-gray-200"} ${loading ? "opacity-50" : ""}`}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+        present ? "bg-blue-500" : "bg-gray-200"
+      } ${loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
-      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${present ? "translate-x-5" : "translate-x-0"}`} />
+      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+        present ? "translate-x-5" : "translate-x-0"
+      }`} />
     </button>
   );
 }
@@ -82,8 +86,8 @@ function MiniCalendar({ selectedDate, onSelect, weekOffset, setWeekOffset }) {
         return (
           <button key={i} onClick={() => onSelect(d)}
             className={`flex flex-col items-center px-2 py-1.5 rounded-lg min-w-[44px] transition-colors
-              ${isSelected ? "bg-green-500 text-white" : isToday ? "bg-green-100 text-green-700" : "bg-gray-50 hover:bg-gray-100 text-gray-600"}`}>
-            <span className={`text-[9px] font-medium ${isSelected ? "text-green-100" : "text-gray-400"}`}>
+              ${isSelected ? "bg-blue-500 text-white" : isToday ? "bg-blue-100 text-blue-700" : "bg-gray-50 hover:bg-gray-100 text-gray-600"}`}>
+            <span className={`text-[9px] font-medium ${isSelected ? "text-blue-100" : "text-gray-400"}`}>
               {CAL_MONTHS[d.getMonth()]}
             </span>
             <span className={`text-sm font-bold ${isSelected ? "text-white" : ""}`}>{d.getDate()}</span>
@@ -228,7 +232,7 @@ export default function LessonDetail() {
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 size={20} className="animate-spin text-green-500" />
+          <Loader2 size={20} className="animate-spin text-blue-500" />
           <span className="ml-2 text-xs text-gray-400">Yuklanmoqda...</span>
         </div>
       ) : (
@@ -239,7 +243,7 @@ export default function LessonDetail() {
             {["assistant","teacher"].map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`py-2 text-xs font-medium capitalize transition-colors border-b-2 -mb-px ${
-                  activeTab === tab ? "border-green-500 text-green-600" : "border-transparent text-gray-400 hover:text-gray-600"
+                  activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"
                 }`}>
                 {tab === "teacher" ? "Teacher" : "Assistant"}
               </button>
@@ -285,13 +289,13 @@ export default function LessonDetail() {
               <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
                 <input type="radio" name="topicType" value="plan" checked={topicType === "plan"}
                   onChange={() => setTopicType("plan")}
-                  className="accent-green-500" />
+                  className="accent-blue-500" />
                 O'quv reja bo'yicha
               </label>
-              <label className="flex items-center gap-1.5 text-xs text-green-600 font-medium cursor-pointer">
+              <label className="flex items-center gap-1.5 text-xs text-blue-600 font-medium cursor-pointer">
                 <input type="radio" name="topicType" value="other" checked={topicType === "other"}
                   onChange={() => setTopicType("other")}
-                  className="accent-green-500" />
+                  className="accent-blue-500" />
                 Boshqa
               </label>
             </div>
@@ -303,7 +307,7 @@ export default function LessonDetail() {
                 value={theme}
                 onChange={(e) => setTheme(e.target.value)}
                 placeholder={activeLesson?.theme || "CRM groupinner full"}
-                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400 transition-all"
+                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
               />
             </div>
 
@@ -314,14 +318,14 @@ export default function LessonDetail() {
                 value={description}
                 onChange={(e) => setDesc(e.target.value)}
                 placeholder="Qo'shimcha ma'lumot..."
-                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400 transition-all"
+                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
               />
             </div>
 
             <button
               onClick={handleSaveLesson}
               disabled={savingLesson || !theme.trim()}
-              className="px-4 py-2 text-xs font-semibold text-white bg-green-500 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               {savingLesson ? <Loader2 size={12} className="animate-spin" /> : null}
               {lessonSaved ? "Saqlandi ✓" : "Saqlash"}

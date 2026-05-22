@@ -1,23 +1,56 @@
-import { useState } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, RefreshCw, Loader2 } from "lucide-react";
 import AddCourseDrawer from "./AddCourseDraawer";
 
-const mockCourses = [
-  { id: 1, name: "Backend",  hours: 180, months: 8, price: "2000000 so'm"  },
-  { id: 2, name: "Frontend", hours: 120, months: 4, price: "15000000 so'm" },
-];
+const BASE = "http://localhost:3000";
+
+function getToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("access_token")
+  );
+}
 
 export default function Courses() {
+  const [courses,    setCourses]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
   const [search,     setSearch]     = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const filteredCourses = mockCourses.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+  const fetchCourses = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = getToken();
+      const res = await fetch(`${BASE}/api/courses/all`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error("Ma'lumot olishda xatolik");
+      setCourses(json.data ?? []);
+    } catch (err) {
+      setError(err.message || "Server bilan bog'lanishda xatolik");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  const filteredCourses = courses.filter((c) =>
+    c.name?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSave = (data) => {
-    console.log("Yangi kurs:", data);
-    // TODO: API ga yuborish
+  const handleSave = async (data) => {
+    // Drawer saqlanganda kurslarni qayta yuklash
+    await fetchCourses();
   };
 
   return (
@@ -27,8 +60,12 @@ export default function Courses() {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-gray-800">Kurslar</h2>
-            <button className="text-gray-400 hover:text-[#3d5af1] transition-colors">
-              <RefreshCw className="w-4 h-4" />
+            <button
+              onClick={fetchCourses}
+              disabled={loading}
+              className="text-gray-400 hover:text-[#3d5af1] transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </button>
           </div>
 
@@ -53,28 +90,57 @@ export default function Courses() {
           </div>
         </div>
 
-        {/* Course Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredCourses.map((course) => (
-            <div
-              key={course.id}
-              className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow cursor-pointer"
-            >
-              <h3 className="font-semibold text-gray-800 mb-3">{course.name}</h3>
-              <div className="flex items-center gap-3 text-xs text-gray-500">
-                <span>{course.hours} soat</span>
-                <span>{course.months} oy</span>
-                <span>{course.price}</span>
-              </div>
-            </div>
-          ))}
+        {/* Loading */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-5 h-5 animate-spin text-[#3d5af1]" />
+            <span className="ml-2 text-sm text-gray-400">Yuklanmoqda...</span>
+          </div>
+        )}
 
-          {filteredCourses.length === 0 && (
-            <p className="text-sm text-gray-400 col-span-full text-center py-8">
-              Kurslar topilmadi
-            </p>
-          )}
-        </div>
+        {/* Error */}
+        {error && !loading && (
+          <div className="flex flex-col items-center justify-center py-12 gap-2">
+            <p className="text-sm text-red-500">{error}</p>
+            <button
+              onClick={fetchCourses}
+              className="text-xs text-[#3d5af1] underline"
+            >
+              Qayta urinish
+            </button>
+          </div>
+        )}
+
+        {/* Course Cards */}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredCourses.map((course) => (
+              <div
+                key={course.id}
+                className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow cursor-pointer"
+              >
+                <h3 className="font-semibold text-gray-800 mb-3">{course.name}</h3>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                  {course.lesson_duration && (
+                    <span>{course.lesson_duration} min</span>
+                  )}
+                  {course.duration_month && (
+                    <span>{course.duration_month} oy</span>
+                  )}
+                  {course.price && (
+                    <span>{Number(course.price).toLocaleString()} so'm</span>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {filteredCourses.length === 0 && (
+              <p className="text-sm text-gray-400 col-span-full text-center py-8">
+                Kurslar topilmadi
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Drawer */}
