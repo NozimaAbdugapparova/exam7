@@ -214,7 +214,7 @@ export default function GroupLessons({ groupId, groupStudentCount }) {
         {activeSubTab === "Uyga vazifa" && (
           <button
             onClick={() => navigate(`/homework/add/${groupId}`)}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
           >
             <Plus size={14} />
             Uyga vazifa qo'shish

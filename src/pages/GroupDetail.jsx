@@ -91,7 +91,7 @@ function MentorsCard({ teachers }) {
               <div key={t.id ?? i} className="flex flex-col items-center gap-2">
                 <Avatar firstName={t.first_name} lastName={t.last_name} photo={t.photo} size="lg" />
                 <div className="text-center">
-                  <p className="text-[10px] text-green-500 font-semibold">
+                  <p className="text-[10px] text-blue-500 font-semibold">
                     {i === 0 ? "Teacher" : "Assistant"}
                   </p>
                   <p className="text-xs font-semibold text-gray-700">
@@ -406,7 +406,7 @@ export default function GroupDetail() {
           <ChevronLeft size={16} />
         </button>
         <h1 className="text-base font-bold text-gray-800">{group?.name || "Guruh"}</h1>
-        <span className="px-2 py-0.5 text-[10px] font-semibold bg-green-100 text-green-600 rounded-full border border-green-200">
+        <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-600 rounded-full border border-blue-200">
           Aktiv
         </span>
         <button className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 shadow-sm">

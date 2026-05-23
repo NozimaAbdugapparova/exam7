@@ -4,16 +4,8 @@ export default function Navbar({ user = { name: "Nozima", role: "Admin" } }) {
   const initials = user.name?.charAt(0).toUpperCase() || "C";
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100 ">
-      {/* Greeting */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-800 leading-tight">
-          Salom, {user.name}!
-        </h1>
-        <p className="text-sm text-gray-400 mt-0.5">
-          GoldCRM platformasiga xush kelibsiz!
-        </p>
-      </div>
+    <header className="flex items-center justify-end px-6 py-4 bg-white border-b border-gray-100 ">
+      
 
       {/* Right side */}
       <div className="flex items-center gap-3">

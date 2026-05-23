@@ -1,7 +1,9 @@
-import { useState, useRef } from "react";
-import { X, Plus, Loader2, Upload, Eye, EyeOff } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { X, Plus, Loader2, Upload, Eye, EyeOff, Save } from "lucide-react";
 
 const CREATE_URL = "http://localhost:3000/api/students/student/add";
+const UPDATE_URL = "http://localhost:3000/api/students/update";
+const PHOTO_BASE = "http://localhost:3000/uploads/";
 
 const INITIAL = {
   first_name: "", last_name: "", email: "",
@@ -31,13 +33,46 @@ function TextInput({ ...props }) {
   );
 }
 
-export default function AddStudentDrawer({ open, onClose, onSuccess }) {
-  const [form, setForm]           = useState(INITIAL);
+/* ── PROPS:
+   open       — drawer ochiq/yopiq
+   onClose    — yopish
+   onSuccess  — muvaffaqiyatdan keyin
+   student    — tahrirlash uchun student obyekti (bo'lmasa — create rejimi)
+── */
+export default function AddStudentDrawer({ open, onClose, onSuccess, student }) {
+  const isEdit = !!student;
+
+  const [form, setForm]            = useState(INITIAL);
   const [photoPreview, setPreview] = useState(null);
-  const [showPass, setShowPass]   = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState(null);
-  const fileRef                   = useRef();
+  const [showPass, setShowPass]    = useState(false);
+  const [loading, setLoading]      = useState(false);
+  const [error, setError]          = useState(null);
+  const fileRef                    = useRef();
+
+  // Edit rejimida form ni to'ldirish
+  useEffect(() => {
+    if (open && isEdit) {
+      setForm({
+        first_name: student.first_name || "",
+        last_name:  student.last_name  || "",
+        email:      student.email      || "",
+        password:   "",                       // parol o'zgarmasa bo'sh qoladi
+        phone:      student.phone      || "",
+        address:    student.address    || "",
+        birth_date: student.birth_date
+          ? new Date(student.birth_date).toISOString().split("T")[0]
+          : "",
+        photo: null,
+      });
+      setPreview(student.photo ? `${PHOTO_BASE}${student.photo}` : null);
+      setError(null);
+    }
+    if (open && !isEdit) {
+      setForm(INITIAL);
+      setPreview(null);
+      setError(null);
+    }
+  }, [open, student]);
 
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
 
@@ -48,24 +83,36 @@ export default function AddStudentDrawer({ open, onClose, onSuccess }) {
   };
 
   const handleSubmit = async () => {
-    if (!form.first_name || !form.last_name || !form.email || !form.password || !form.phone) {
+    if (!form.first_name || !form.last_name || !form.email || !form.phone) {
       setError("Majburiy maydonlarni to'ldiring"); return;
     }
+    if (!isEdit && !form.password) {
+      setError("Parolni kiriting"); return;
+    }
+
     try {
       setLoading(true); setError(null);
       const token = getToken();
-      const body = new FormData();
+      const body  = new FormData();
+
       body.append("first_name", form.first_name);
       body.append("last_name",  form.last_name);
       body.append("email",      form.email);
-      body.append("password",   form.password);
       body.append("phone",      form.phone);
       body.append("address",    form.address);
       if (form.birth_date) body.append("birth_date", form.birth_date);
       if (form.photo)      body.append("photo",      form.photo);
 
-      const res = await fetch(CREATE_URL, {
-        method: "POST",
+      // Parol: create da majburiy, edit da faqat kiritilsa yuboriladi
+      if (!isEdit || form.password) {
+        body.append("password", form.password);
+      }
+
+      const url    = isEdit ? `${UPDATE_URL}/${student.id}` : CREATE_URL;
+      const method = isEdit ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { ...(token && { Authorization: `Bearer ${token}` }) },
         body,
       });
@@ -75,8 +122,8 @@ export default function AddStudentDrawer({ open, onClose, onSuccess }) {
         throw new Error(Array.isArray(j.message) ? j.message.join(", ") : j.message || `Xato: ${res.status}`);
       }
 
-      setForm(INITIAL); setPreview(null);
-      onSuccess?.(); onClose();
+      onSuccess?.();
+      handleClose();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -103,8 +150,14 @@ export default function AddStudentDrawer({ open, onClose, onSuccess }) {
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex items-start justify-between">
           <div>
-            <h2 className="text-sm font-bold text-gray-800">Talaba qo'shish</h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">Bu yerda siz yangi Talaba qo'shishingiz mumkin.</p>
+            <h2 className="text-sm font-bold text-gray-800">
+              {isEdit ? "Talabani tahrirlash" : "Talaba qo'shish"}
+            </h2>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {isEdit
+                ? `${student.first_name} ${student.last_name} ma'lumotlarini tahrirlash`
+                : "Bu yerda siz yangi Talaba qo'shishingiz mumkin."}
+            </p>
           </div>
           <button onClick={handleClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
             <X size={15} />
@@ -150,12 +203,14 @@ export default function AddStudentDrawer({ open, onClose, onSuccess }) {
 
           {/* Parol */}
           <div>
-            <FieldLabel required>Parol</FieldLabel>
+            <FieldLabel required={!isEdit}>
+              Parol {isEdit && <span className="text-gray-300 font-normal">(o'zgartirmasangiz bo'sh qoldiring)</span>}
+            </FieldLabel>
             <div className="relative">
               <TextInput
                 type={showPass ? "text" : "password"}
                 autoComplete="new-password"
-                placeholder="Parolni kiriting"
+                placeholder={isEdit ? "Yangi parol (ixtiyoriy)" : "Parolni kiriting"}
                 value={form.password}
                 onChange={e => set("password", e.target.value)}
               />
@@ -253,10 +308,13 @@ export default function AddStudentDrawer({ open, onClose, onSuccess }) {
             disabled={loading}
             className="flex-1 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
           >
-            {loading
-              ? <><Loader2 size={13} className="animate-spin" />Saqlanmoqda...</>
-              : <><Plus size={13} />Saqlash</>
-            }
+            {loading ? (
+              <><Loader2 size={13} className="animate-spin" />Saqlanmoqda...</>
+            ) : isEdit ? (
+              <><Save size={13} />Saqlash</>
+            ) : (
+              <><Plus size={13} />Qo'shish</>
+            )}
           </button>
         </div>
       </div>

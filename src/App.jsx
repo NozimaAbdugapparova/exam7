@@ -13,6 +13,8 @@ import GroupDetail from "./pages/GroupDetail";
 import LessonDetail from "./pages/LessonDetail";
 import AddHomeworkPage from "./pages/AddHomework";
 import HomeworkDetailPage from "./pages/HomeworkDetail";
+import ArchivedStudents from "./pages/ArchivedStudents";
+import ArchivedTeachers from "./pages/ArchivedTeachers";
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
@@ -44,7 +46,8 @@ export default function App(){
                                             <Route path="/groups/:groupId/lessons" element={<LessonDetail />} />
                                             <Route path="/homework/add/:groupId" element={<AddHomeworkPage />} />
                                             <Route path="/groups/:groupId/homework/:homeworkId" element={<HomeworkDetailPage />} />
-                                            
+                                            <Route path="/students/archived" element={<ArchivedStudents />} />
+                                            <Route path="/teachers/archived" element={<ArchivedTeachers />} />
                                         </Routes>
                                     </Layout>
                                 </SidebarProvider>

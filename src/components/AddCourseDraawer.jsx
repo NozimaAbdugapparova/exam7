@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Loader2 } from "lucide-react";
 
 const BASE = "http://localhost:3000";
 
@@ -32,7 +32,9 @@ function getToken() {
   );
 }
 
-export default function AddCourseDrawer({ open, onClose, onSave }) {
+export default function AddCourseDrawer({ open, onClose, onSave, editingCourse }) {
+  const isEditing = !!editingCourse;
+
   const [form, setForm] = useState({
     name:           "",
     lessonDuration: "",
@@ -43,6 +45,23 @@ export default function AddCourseDrawer({ open, onClose, onSave }) {
   });
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
+
+  // Populate form when editingCourse changes
+  useEffect(() => {
+    if (editingCourse) {
+      setForm({
+        name:           editingCourse.name || "",
+        lessonDuration: editingCourse.duration_hours?.toString() || editingCourse.lesson_duration?.toString() || "",
+        courseDuration: editingCourse.duration_month?.toString() || "",
+        price:          editingCourse.price?.toString() || "",
+        description:    editingCourse.description || "",
+        level:          editingCourse.level || "",
+      });
+    } else {
+      setForm({ name: "", lessonDuration: "", courseDuration: "", price: "", description: "", level: "" });
+    }
+    setError("");
+  }, [editingCourse, open]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -60,21 +79,35 @@ export default function AddCourseDrawer({ open, onClose, onSave }) {
     setLoading(true);
     try {
       const token = getToken();
-      const res = await fetch(`${BASE}/api/courses/add/new`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify({
-          name:           form.name.trim(),
-          description:    form.description.trim(),
-          price:          Number(form.price),
-          duration_hours: Number(form.lessonDuration),
-          duration_month: Number(form.courseDuration),
-          level:          form.level,
-        }),
-      });
+      const body = {
+        name:           form.name.trim(),
+        description:    form.description.trim(),
+        price:          Number(form.price),
+        duration_hours: Number(form.lessonDuration),
+        duration_month: Number(form.courseDuration),
+        level:          form.level,
+      };
+
+      let res;
+      if (isEditing) {
+        res = await fetch(`${BASE}/api/courses/update/${editingCourse.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          body: JSON.stringify(body),
+        });
+      } else {
+        res = await fetch(`${BASE}/api/courses/add/new`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          body: JSON.stringify(body),
+        });
+      }
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Xatolik yuz berdi");
@@ -116,9 +149,14 @@ export default function AddCourseDrawer({ open, onClose, onSave }) {
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">Kurs qo'shish</h2>
+            <h2 className="text-lg font-semibold text-gray-800">
+              {isEditing ? "Kursni tahrirlash" : "Kurs qo'shish"}
+            </h2>
             <p className="text-sm text-gray-400 mt-0.5">
-              Bu yerda siz yangi kurs qo'shishingiz mumkin.
+              {isEditing 
+                ? "Bu yerda siz kurs ma'lumotlarini o'zgartirishingiz mumkin."
+                : "Bu yerda siz yangi kurs qo'shishingiz mumkin."
+              }
             </p>
           </div>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors mt-1">
@@ -261,12 +299,9 @@ export default function AddCourseDrawer({ open, onClose, onSave }) {
             className="px-5 py-2.5 text-sm font-medium text-white bg-[#3d5af1] hover:bg-[#2a47d6] rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && (
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
+              <Loader2 className="animate-spin w-4 h-4" />
             )}
-            Saqlash
+            {isEditing ? "Saqlash" : "Qo'shish"}
           </button>
         </div>
       </div>

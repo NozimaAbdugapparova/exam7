@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Loader2, Pencil, Trash2 } from "lucide-react";
 import AddCourseDrawer from "./AddCourseDraawer";
 
 const BASE = "http://localhost:3000";
@@ -18,6 +18,8 @@ export default function Courses() {
   const [error,      setError]      = useState(null);
   const [search,     setSearch]     = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchCourses = useCallback(async () => {
     setLoading(true);
@@ -49,8 +51,40 @@ export default function Courses() {
   );
 
   const handleSave = async (data) => {
-    // Drawer saqlanganda kurslarni qayta yuklash
     await fetchCourses();
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Kursni o'chirishni xohlaysizmi?")) return;
+
+    setDeletingId(id);
+    try {
+      const token = getToken();
+      const res = await fetch(`${BASE}/api/courses/delete/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "O'chirishda xatolik");
+      await fetchCourses();
+    } catch (err) {
+      setError(err.message || "O'chirishda xatolik yuz berdi");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleEdit = (course) => {
+    setEditingCourse(course);
+    setDrawerOpen(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    setEditingCourse(null);
   };
 
   return (
@@ -117,9 +151,41 @@ export default function Courses() {
             {filteredCourses.map((course) => (
               <div
                 key={course.id}
-                className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow cursor-pointer"
+                className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow cursor-pointer group"
               >
-                <h3 className="font-semibold text-gray-800 mb-3">{course.name}</h3>
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800">{course.name}</h3>
+
+                  {/* Action buttons - visible on hover */}
+                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(course);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-[#3d5af1] hover:bg-[#3d5af1]/5 rounded-md transition-colors"
+                      title="Tahrirlash"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(course.id);
+                      }}
+                      disabled={deletingId === course.id}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                      title="O'chirish"
+                    >
+                      {deletingId === course.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                   {course.lesson_duration && (
                     <span>{course.lesson_duration} min</span>
@@ -146,8 +212,9 @@ export default function Courses() {
       {/* Drawer */}
       <AddCourseDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={handleCloseDrawer}
         onSave={handleSave}
+        editingCourse={editingCourse}
       />
     </>
   );
