@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Loader2 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 const BASE = "http://localhost:3000";
 const CAL_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -102,6 +103,7 @@ function MiniCalendar({ selectedDate, onSelect, weekOffset, setWeekOffset }) {
 export default function LessonDetail() {
   const { groupId } = useParams();
   const navigate    = useNavigate();
+  const { role }    = useAuth();
 
   const [group, setGroup]           = useState(null);
   const [students, setStudents]     = useState([]);
@@ -126,11 +128,12 @@ export default function LessonDetail() {
   useEffect(() => {
     if (!groupId) return;
     setLoading(true);
-    Promise.all([
+    const promises = [
       api(`/api/groups/${groupId}`),
-      api(`/api/groups/one/students/${groupId}`),
+      role === "student" ? Promise.resolve({ success: true, data: [] }) : api(`/api/groups/one/students/${groupId}`),
       api(`/api/lessons/my/group/${groupId}`),
-    ])
+    ];
+    Promise.all(promises)
       .then(([grp, stud, less]) => {
         if (grp.success)  setGroup(grp.data);
         if (stud.success) setStudents(stud.data || []);
@@ -141,7 +144,7 @@ export default function LessonDetail() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [groupId]);
+  }, [groupId, role]);
 
   // Load attendance when lesson changes
   useEffect(() => {
@@ -280,102 +283,126 @@ export default function LessonDetail() {
           {/* Group + date title */}
           <p className="text-xs font-semibold text-gray-600">{groupName} {selectedDate.toLocaleDateString("ru")}</p>
 
-          {/* Topic entry card */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <h3 className="text-sm font-bold text-gray-800 mb-3">Yo'qlama va mavzu kiritish</h3>
-
-            {/* Topic type radio */}
-            <div className="flex items-center gap-4 mb-3">
-              <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
-                <input type="radio" name="topicType" value="plan" checked={topicType === "plan"}
-                  onChange={() => setTopicType("plan")}
-                  className="accent-blue-500" />
-                O'quv reja bo'yicha
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-blue-600 font-medium cursor-pointer">
-                <input type="radio" name="topicType" value="other" checked={topicType === "other"}
-                  onChange={() => setTopicType("other")}
-                  className="accent-blue-500" />
-                Boshqa
-              </label>
+          {/* Student specific lesson detail view */}
+          {role === "student" && activeLesson && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4 animate-fade-in">
+              <h3 className="font-bold text-gray-800 text-base border-b border-gray-100 pb-3">Dars Mavzusi</h3>
+              <div>
+                <p className="text-xs text-gray-400 font-semibold">Mavzu nomi</p>
+                <p className="text-sm font-semibold text-gray-800 mt-1">{activeLesson.theme || "Mavzu kiritilmagan"}</p>
+              </div>
+              {activeLesson.description && (
+                <div>
+                  <p className="text-xs text-gray-400 font-semibold">Tavsif / Vazifalar</p>
+                  <p className="text-sm text-gray-600 mt-1">{activeLesson.description}</p>
+                </div>
+              )}
+              <div className="border-t border-gray-100 pt-4 mt-2">
+                <span className="text-xs text-gray-500">Dars sanasi: {formatDateLabel(new Date(activeLesson.created_at))}</span>
+              </div>
             </div>
+          )}
 
-            {/* Theme input */}
-            <div className="mb-3">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">* Mavzu</label>
-              <input
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                placeholder={activeLesson?.theme || "CRM groupinner full"}
-                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
-              />
+          {/* Topic entry card for non-students */}
+          {role !== "student" && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <h3 className="text-sm font-bold text-gray-800 mb-3">Yo'qlama va mavzu kiritish</h3>
+
+              {/* Topic type radio */}
+              <div className="flex items-center gap-4 mb-3">
+                <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                  <input type="radio" name="topicType" value="plan" checked={topicType === "plan"}
+                    onChange={() => setTopicType("plan")}
+                    className="accent-blue-500" />
+                  O'quv reja bo'yicha
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-blue-600 font-medium cursor-pointer">
+                  <input type="radio" name="topicType" value="other" checked={topicType === "other"}
+                    onChange={() => setTopicType("other")}
+                    className="accent-blue-500" />
+                  Boshqa
+                </label>
+              </div>
+
+              {/* Theme input */}
+              <div className="mb-3">
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">* Mavzu</label>
+                <input
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  placeholder={activeLesson?.theme || "CRM groupinner full"}
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="mb-3">
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">Tavsif</label>
+                <input
+                  value={description}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Qo'shimcha ma'lumot..."
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                />
+              </div>
+
+              <button
+                onClick={handleSaveLesson}
+                disabled={savingLesson || !theme.trim()}
+                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {savingLesson ? <Loader2 size={12} className="animate-spin" /> : null}
+                {lessonSaved ? "Saqlandi ✓" : "Saqlash"}
+              </button>
             </div>
+          )}
 
-            {/* Description */}
-            <div className="mb-3">
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Tavsif</label>
-              <input
-                value={description}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="Qo'shimcha ma'lumot..."
-                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
-              />
+          {/* Attendance table for non-students */}
+          {role !== "student" && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/80">
+                    <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-8">#</th>
+                    <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">O'quvchi ismi</th>
+                    <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Vaqti</th>
+                    <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Keldi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {students.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-8 text-xs text-gray-400">Talabalar topilmadi</td></tr>
+                  ) : students.map((s, i) => {
+                    const att = attendance.find((a) => a.student_id === s.id);
+                    const isPresent = att?.isPresent ?? false;
+                    return (
+                      <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3 text-xs text-gray-500">{i + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar firstName={s.first_name} lastName={s.last_name} photo={s.photo} />
+                            <span className="text-xs font-medium text-gray-800">
+                              {s.last_name} {s.first_name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 text-right">
+                          {group?.start_time || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <AttendanceToggle
+                            present={isPresent}
+                            onChange={() => handleToggleAttendance(s)}
+                            loading={attLoading[s.id]}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-
-            <button
-              onClick={handleSaveLesson}
-              disabled={savingLesson || !theme.trim()}
-              className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {savingLesson ? <Loader2 size={12} className="animate-spin" /> : null}
-              {lessonSaved ? "Saqlandi ✓" : "Saqlash"}
-            </button>
-          </div>
-
-          {/* Attendance table */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/80">
-                  <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-8">#</th>
-                  <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">O'quvchi ismi</th>
-                  <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Vaqti</th>
-                  <th className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Keldi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {students.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center py-8 text-xs text-gray-400">Talabalar topilmadi</td></tr>
-                ) : students.map((s, i) => {
-                  const att = attendance.find((a) => a.student_id === s.id);
-                  const isPresent = att?.isPresent ?? false;
-                  return (
-                    <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-xs text-gray-500">{i + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar firstName={s.first_name} lastName={s.last_name} photo={s.photo} />
-                          <span className="text-xs font-medium text-gray-800">
-                            {s.last_name} {s.first_name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 text-right">
-                        {group?.start_time || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <AttendanceToggle
-                          present={isPresent}
-                          onChange={() => handleToggleAttendance(s)}
-                          loading={attLoading[s.id]}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          )}
         </div>
       )}
     </div>

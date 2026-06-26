@@ -114,6 +114,25 @@ export default function Teachers() {
     finally { setDeleteLoading(false); }
   };
 
+  // Handle drawer close - single source of truth for closing
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    setEditTeacher(null);
+  }, []);
+
+  // Handle create success
+  const handleCreateSuccess = useCallback(async () => {
+    await fetchTeachers();
+    setCurrentPage(1);
+    setDrawerOpen(false);
+  }, [fetchTeachers]);
+
+  // Handle edit success
+  const handleEditSuccess = useCallback(async () => {
+    await fetchTeachers();
+    setEditTeacher(null);
+  }, [fetchTeachers]);
+
   return (
     <>
       <div className="flex flex-col h-full bg-[#f4f5f7] min-h-screen">
@@ -207,16 +226,16 @@ export default function Teachers() {
       {/* Create drawer */}
       <AddTeacherDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onSuccess={() => { fetchTeachers(); setCurrentPage(1); }}
+        onClose={handleCloseDrawer}
+        onSuccess={handleCreateSuccess}
       />
 
       {/* Edit drawer */}
       <AddTeacherDrawer
         open={!!editTeacher}
         teacher={editTeacher}
-        onClose={() => setEditTeacher(null)}
-        onSuccess={() => { fetchTeachers(); setEditTeacher(null); }}
+        onClose={handleCloseDrawer}
+        onSuccess={handleEditSuccess}
       />
 
       {/* Delete confirm */}

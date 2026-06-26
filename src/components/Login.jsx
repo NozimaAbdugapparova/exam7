@@ -54,11 +54,8 @@ export default function Login() {
       authLogin(token, data.role);
       if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
 
-      // Role ga qarab sahifaga yo'naltirish
-      if (data.role === "admin")        navigate("/dashboard");
-      else if (data.role === "teacher") navigate("/teacher");
-      else if (data.role === "student") navigate("/student");
-      else navigate("/dashboard"); // fallback
+      // Hamma rolni /dashboard ga yo'naltirish
+      navigate("/dashboard");
 
     } catch (err) {
       setError(err.message || "Tizimda xatolik yuz berdi.");

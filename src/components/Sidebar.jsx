@@ -8,22 +8,55 @@ import {
   ChevronLeft,
   RefreshCw,
   AlertTriangle,
-  
+  User,
+  ChevronDown,
+  Video,
+  CreditCard,
+  BarChart3,
+  Signal,
+  ShoppingCart,
+  Radio
 } from "lucide-react";
 import { PiChalkboardTeacher } from "react-icons/pi";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useSidebar } from "../contexts/SidebarContext";
 
 const navItems = [
   { icon: Home,          label: "Asosiy",      path: "/dashboard" },
   { icon: PiChalkboardTeacher, label: "O'qituvchilar", path: "/teachers"  },
-  { icon: Users,         label: "Guruhlar",    path: "/groups"    },
+  { 
+    icon: Users,         
+    label: "Guruhlar",    
+    path: "/groups", 
+    hasDropdown: true,
+    subItems: [
+      { label: "Guruhlar", path: "/groups" },
+      { label: "Yig'ilayotgan guruhlar", path: "/groups/planned" }
+    ]
+  },
   { icon: GraduationCap,         label: "Talabalar",   path: "/students" },
-  {icon: Settings,       label: "Boshqarish",   path: "/control"},
+  
+  // Student specific items (labels will be handled in filter/mapping if needed, or just add them here)
+  { icon: CreditCard,     label: "To'lovlarim",    path: "/payments" },
+  { icon: BarChart3,      label: "Ko'rsatkichlarim", path: "/stats" },
+  { icon: Signal,         label: "Reyting",        path: "/rating" },
+  { icon: ShoppingCart,   label: "Do'kon",         path: "/shop" },
+  { icon: Radio,          label: "Qo'shimcha darslar", path: "/extra-lessons" },
+
+  { icon: Settings,       label: "Boshqarish",   path: "/control"},
+  { icon: User,          label: "Profil",      path: "/profile" },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar() {
   const location  = useLocation();
   const navigate  = useNavigate();
+  const { isCollapsed, toggleSidebar } = useSidebar();
+  const { role } = useAuth();
+  
+  const collapsed = isCollapsed;
+  const onToggle = toggleSidebar;
+
   const [openDropdown, setOpenDropdown] = useState(null);
 
   const handleItemClick = (item) => {
@@ -33,6 +66,39 @@ export default function Sidebar({ collapsed, onToggle }) {
       navigate(item.path);
     }
   };
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (role === "teacher") {
+      return item.path === "/groups" || item.path === "/profile";
+    }
+    if (role === "student") {
+      // Student specific list
+      const studentPaths = [
+        "/dashboard", 
+        "/payments", 
+        "/groups", 
+        "/stats", 
+        "/rating", 
+        "/shop", 
+        "/extra-lessons", 
+        "/profile"
+      ];
+      return studentPaths.includes(item.path);
+    }
+    // Admin sees everything except student-only paths
+    const studentOnly = ["/payments", "/stats", "/rating", "/shop", "/extra-lessons"];
+    return !studentOnly.includes(item.path);
+  });
+
+  // Rename labels for student if needed
+  const processedNavItems = filteredNavItems.map(item => {
+    if (role === "student") {
+      if (item.path === "/dashboard") return { ...item, label: "Bosh sahifa" };
+      if (item.path === "/groups")    return { ...item, label: "Guruhlarim", hasDropdown: false, subItems: undefined };
+      if (item.path === "/profile")   return { ...item, label: "Sozlamalar", icon: Settings };
+    }
+    return item;
+  });
 
   return (
     <aside
@@ -74,10 +140,9 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         {/* Nav Items */}
         <nav className="px-3 py-4 flex flex-col gap-1">
-          {navItems.map((item) => {
+          {processedNavItems.map((item) => {
             const Icon     = item.icon;
-            const isActive = location.pathname === item.path ||
-                             (item.hasDropdown && location.pathname.startsWith(item.path));
+            const isActive = location.pathname.startsWith(item.path);
 
             return (
               <div key={item.path}>
@@ -100,9 +165,39 @@ export default function Sidebar({ collapsed, onToggle }) {
                       <span className="whitespace-nowrap">{item.label}</span>
                     )}
                   </div>
+
+                  {!collapsed && item.hasDropdown && (
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${
+                        openDropdown === item.path ? "rotate-180" : ""
+                      }`}
+                    />
+                  )}
                 </button>
 
-                
+                {/* Sub Items */}
+                {!collapsed && item.subItems && openDropdown === item.path && (
+                  <div className="mt-1 flex flex-col gap-1 pl-11">
+                    {item.subItems.map((sub) => {
+                      const isSubActive = location.pathname === sub.path;
+                      return (
+                        <button
+                          key={sub.path}
+                          onClick={() => navigate(sub.path)}
+                          className={`
+                            text-left py-2 px-3 rounded-xl text-[13px] transition-all
+                            ${isSubActive 
+                              ? "bg-gray-100 text-[#3d5af1] font-semibold" 
+                              : "text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+                            }
+                          `}
+                        >
+                          {sub.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

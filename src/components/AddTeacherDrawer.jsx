@@ -16,6 +16,7 @@ function getToken() {
 
 export default function AddTeacherDrawer({ open, onClose, onSuccess, teacher }) {
   const isEdit = !!teacher;
+  const teacherId = teacher?.id;
 
   const [form,         setForm]         = useState(INITIAL_FORM);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -23,27 +24,30 @@ export default function AddTeacherDrawer({ open, onClose, onSuccess, teacher }) 
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
   const fileRef = useRef();
+  const prevOpenRef = useRef(open);
 
+  // Populate form when drawer opens with edit data
   useEffect(() => {
-    if (open && isEdit) {
-      setForm({
-        first_name: teacher.first_name || "",
-        last_name:  teacher.last_name  || "",
-        email:      teacher.email      || "",
-        password:   "",
-        phone:      teacher.phone      || "",
-        address:    teacher.address    || "",
-        photo:      null,
-      });
-      setPhotoPreview(teacher.photo ? `${PHOTO_BASE}${teacher.photo}` : null);
+    if (open && !prevOpenRef.current) {
+      if (isEdit) {
+        setForm({
+          first_name: teacher.first_name || "",
+          last_name:  teacher.last_name  || "",
+          email:      teacher.email      || "",
+          password:   "",
+          phone:      teacher.phone      || "",
+          address:    teacher.address    || "",
+          photo:      null,
+        });
+        setPhotoPreview(teacher.photo ? `${PHOTO_BASE}${teacher.photo}` : null);
+      } else {
+        setForm(INITIAL_FORM);
+        setPhotoPreview(null);
+      }
       setError(null);
     }
-    if (open && !isEdit) {
-      setForm(INITIAL_FORM);
-      setPhotoPreview(null);
-      setError(null);
-    }
-  }, [open, teacher]);
+    prevOpenRef.current = open;
+  }, [open, teacherId]);
 
   // Cleanup object URL to prevent memory leaks
   useEffect(() => {
@@ -72,6 +76,12 @@ export default function AddTeacherDrawer({ open, onClose, onSuccess, teacher }) 
       return;
     }
 
+    // Extra safety: ensure teacher.id exists for edit
+    if (isEdit && !teacher?.id) {
+      setError("O'qituvchi ID topilmadi");
+      return;
+    }
+
     setLoading(true); 
     setError(null);
 
@@ -89,6 +99,14 @@ export default function AddTeacherDrawer({ open, onClose, onSuccess, teacher }) 
       const url    = isEdit ? `${UPDATE_URL}/${teacher.id}` : CREATE_URL;
       const method = isEdit ? "PATCH" : "POST";
 
+      // Debug logging
+      console.log("Update URL:", url);
+      console.log("Teacher ID:", teacher?.id);
+      console.log("FormData entries:");
+      for (let [key, value] of body.entries()) {
+        console.log(`  ${key}:`, value instanceof File ? `File(${value.name})` : value);
+      }
+
       const res = await fetch(url, {
         method,
         headers: { ...(token && { Authorization: `Bearer ${token}` }) },
@@ -100,17 +118,16 @@ export default function AddTeacherDrawer({ open, onClose, onSuccess, teacher }) 
         throw new Error(Array.isArray(json.message) ? json.message.join(", ") : json.message || `Xato: ${res.status}`);
       }
 
-      // Success - call callbacks and reset
-      onSuccess?.();
+      // Success
+      await onSuccess?.();
 
-      // Reset form state before closing
       setForm(INITIAL_FORM);
       setPhotoPreview(null);
       setError(null);
 
-      // Close drawer
       onClose();
     } catch (err) {
+      console.error("Submit error:", err);
       setError(err.message);
     } finally {
       setLoading(false);

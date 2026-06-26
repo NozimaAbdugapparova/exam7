@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users, BookOpen, GraduationCap, RefreshCw, Loader2, Archive, Plus } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 import AddGroupDrawer from "../components/AddGroupDrawer";
 
 const API_URL          = "http://localhost:3000/api/groups/all";
@@ -83,13 +84,14 @@ function TeacherInitials({ firstName, lastName }) {
   );
 }
 
-function StatusToggle({ active }) {
+function StatusToggle({ active, disabled }) {
   const [on, setOn] = useState(active);
   return (
     <div className="flex items-center gap-2">
       <button
-        onClick={() => setOn((p) => !p)}
-        className={`relative w-9 h-5 rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-200"}`}
+        onClick={() => !disabled && setOn((p) => !p)}
+        disabled={disabled}
+        className={`relative w-9 h-5 rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-200"} ${disabled ? "opacity-75 cursor-default" : ""}`}
       >
         <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${on ? "translate-x-4" : "translate-x-0"}`} />
       </button>
@@ -102,15 +104,50 @@ function StatusToggle({ active }) {
 
 function GroupRow({ group }) {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  
   const startDate = group.start_date ? new Date(group.start_date) : null;
   const formatDate = (d) => d
     ? `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`
     : "—";
 
+  if (role === "student") {
+    return (
+      <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors group">
+        <td className="px-4 py-3 text-xs text-gray-500 font-medium">#{group.index + 1}</td>
+        <td className="px-4 py-3">
+          <span
+            onClick={() => navigate(`/groups/${group.id}`)}
+            className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer"
+          >
+            {group.name}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+          {group.courses ? (
+            <span className="px-2 py-0.5 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 rounded-full font-medium">
+              {group.courses.name}
+            </span>
+          ) : "—"}
+        </td>
+        <td className="px-4 py-3">
+          {group.teachers ? (
+            <TeacherInitials firstName={group.teachers.first_name} lastName={group.teachers.last_name} />
+          ) : (
+            <span className="text-xs text-gray-400 italic">O'qituvchi yo'q</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-xs text-gray-600">
+          {formatDate(startDate)}
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors group">
       <td className="px-4 py-3">
-        <StatusToggle active={true} />
+        <StatusToggle active={true} disabled={role !== "admin"} />
       </td>
       <td className="px-4 py-3">
         <span
@@ -141,22 +178,26 @@ function GroupRow({ group }) {
       <td className="px-4 py-3">
         <span className="text-xs text-gray-600">{group.rooms?.name || "—"}</span>
       </td>
+      {role !== "teacher" && (
+        <td className="px-4 py-3">
+          {group.teachers ? (
+            <TeacherInitials firstName={group.teachers.first_name} lastName={group.teachers.last_name} />
+          ) : (
+            <span className="text-xs text-gray-400 italic">O'qituvchi yo'q</span>
+          )}
+        </td>
+      )}
       <td className="px-4 py-3">
-        {group.teachers ? (
-          <TeacherInitials firstName={group.teachers.first_name} lastName={group.teachers.last_name} />
-        ) : (
-          <span className="text-xs text-gray-400 italic">O'qituvchi yo'q</span>
+        <span className="text-xs font-semibold text-gray-700">{group.student_count ?? (group.studentGroups?.length || 0)}</span>
+      </td>
+      <td className="px-4 py-3">
+        {role === "admin" && (
+          <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="14" cy="8" r="1.5"/>
+            </svg>
+          </button>
         )}
-      </td>
-      <td className="px-4 py-3">
-        <span className="text-xs font-semibold text-gray-700">{group.student_count ?? 0}</span>
-      </td>
-      <td className="px-4 py-3">
-        <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-          <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-            <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="14" cy="8" r="1.5"/>
-          </svg>
-        </button>
       </td>
     </tr>
   );
@@ -167,12 +208,22 @@ const COLUMNS = [
   "Dars vaqti", "Xona", "O'qituvchi", "Talabalar", ""
 ];
 
-export default function Groups() {
+const TEACHER_COLUMNS = [
+  "Status", "Guruh", "Kurs", "Davomiyligi",
+  "Dars vaqti", "Xona", "Talabalar", ""
+];
+
+const STUDENT_COLUMNS = [
+  "#", "Guruh nomi", "Yo'nalishi", "O'qituvchi", "Boshlash vaqti"
+];
+
+export default function Groups({ planned = false }) {
+  const { role, user } = useAuth();
   const [groups,       setGroups]       = useState([]);
-  const [studentCount, setStudentCount] = useState(0);   // ✅ API dan keladi
+  const [studentCount, setStudentCount] = useState(0);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
-  const [activeTab,    setActiveTab]    = useState("guruhlar");
+  const [activeTab,    setActiveTab]    = useState(role === "student" ? "active" : "guruhlar");
   const [refetch,      setRefetch]      = useState(0);
   const [drawerOpen,   setDrawerOpen]   = useState(false);
 
@@ -182,21 +233,30 @@ export default function Groups() {
         setLoading(true);
         setError(null);
 
-        // Parallel ravishda guruhlar va o'quvchilarni yuklash
-        const [groupsJson, studentsJson] = await Promise.all([
-          apiFetch(API_URL),
-          apiFetch(STUDENTS_API_URL),
-        ]);
+        if (role === "admin") {
+          // Parallel ravishda guruhlar va o'quvchilarni yuklash
+          const [groupsJson, studentsJson] = await Promise.all([
+            apiFetch(API_URL),
+            apiFetch(STUDENTS_API_URL),
+          ]);
 
-        if (!groupsJson.success)   throw new Error("Guruhlar ma'lumotini olishda xatolik");
-        if (!studentsJson.success) throw new Error("O'quvchilar ma'lumotini olishda xatolik");
+          if (!groupsJson.success)   throw new Error("Guruhlar ma'lumotini olishda xatolik");
+          if (!studentsJson.success) throw new Error("O'quvchilar ma'lumotini olishda xatolik");
 
-        setGroups(groupsJson.data);
-
-        // ✅ students array uzunligi yoki API qaytargan count
-        const students = studentsJson.data;
-        setStudentCount(Array.isArray(students) ? students.length : (studentsJson.total ?? 0));
-
+          setGroups(groupsJson.data || []);
+          const students = studentsJson.data || [];
+          setStudentCount(Array.isArray(students) ? students.length : (studentsJson.total ?? 0));
+        } else if (role === "teacher" && user?.id) {
+          const groupsJson = await apiFetch(`http://localhost:3000/api/teachers/all/groups/${user.id}`);
+          if (!groupsJson.success)   throw new Error("Guruhlar ma'lumotini olishda xatolik");
+          setGroups(groupsJson.data || []);
+          setStudentCount(0);
+        } else if (role === "student") {
+          const groupsJson = await apiFetch(`http://localhost:3000/api/students/own/groups`);
+          if (!groupsJson.success)   throw new Error("Guruhlaringiz ma'lumotini olishda xatolik");
+          setGroups(groupsJson.data || []);
+          setStudentCount(0);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -205,56 +265,74 @@ export default function Groups() {
     };
 
     fetchAll();
-  }, [refetch]);
+  }, [refetch, role, user?.id]);
 
-  const teacherCount = new Set(
-    groups.filter((g) => g.teachers).map((g) => g.teachers.id)
-  ).size;
+  const teacherCount = role === "admin" 
+    ? new Set(groups.filter((g) => g.teachers).map((g) => g.teachers.id)).size 
+    : 1;
+
+  const filteredGroups = role === "student"
+    ? groups.filter(g => activeTab === "active" ? g.status !== "completed" : g.status === "completed")
+    : (planned 
+        ? groups.filter(g => g.status === "planned" || g.status === "PLANNED")
+        : groups.filter(g => g.status !== "planned" && g.status !== "PLANNED"));
+
+  const columnsToRender = role === "student" ? STUDENT_COLUMNS : (role === "teacher" ? TEACHER_COLUMNS : COLUMNS);
 
   return (
     <div className="flex flex-col h-full bg-[#f4f5f7] min-h-screen">
 
       {/* Header */}
       <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-        <h1 className="text-lg font-bold text-gray-800">Guruhlar</h1>
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Plus size={13} />
-          Guruh qo'shish
-        </button>
+        <h1 className="text-lg font-bold text-gray-800">
+          {planned ? "Yig'ilayotgan guruhlar" : "Guruhlar"}
+        </h1>
+        {role === "admin" && (
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <Plus size={13} />
+            Guruh qo'shish
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="px-5 mb-4 flex items-center gap-1 border-b border-gray-200">
-        {["guruhlar", "arxiv"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {tab === "arxiv" && <Archive size={12} />}
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
+      {(role === "admin" || role === "student") && (
+        <div className="px-5 mb-4 flex items-center gap-1 border-b border-gray-200">
+          {(role === "admin" ? ["guruhlar", "arxiv"] : ["active", "completed"]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === tab
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab === "arxiv" && <Archive size={12} />}
+              {tab === "active" ? "Faol" : tab === "completed" ? "Tugagan" : (tab.charAt(0).toUpperCase() + tab.slice(1))}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Stat Cards */}
-      <div className="px-5 mb-4 flex gap-4">
-        <StatCard icon={Users}         label="Jami guruhlar" value={groups.length}  />
-        <StatCard icon={BookOpen}      label="O'qituvchilar" value={teacherCount}   />
-        <StatCard
-          icon={GraduationCap}
-          label="O'quvchilar"
-          value={studentCount}           // ✅ API dan kelgan son
-          avatars={["A", "B"]}
-        />
-      </div>
+      {role !== "student" && (
+        <div className="px-5 mb-4 flex gap-4">
+          <StatCard icon={Users}         label="Jami guruhlar" value={groups.length}  />
+          <StatCard icon={BookOpen}      label="O'qituvchilar" value={teacherCount}   />
+          {role === "admin" && (
+            <StatCard
+              icon={GraduationCap}
+              label="O'quvchilar"
+              value={studentCount}
+              avatars={["A", "B"]}
+            />
+          )}
+        </div>
+      )}
 
       {/* Table */}
       <div className="mx-5 flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
@@ -294,12 +372,12 @@ export default function Groups() {
           </div>
         )}
 
-        {!loading && !error && groups.length > 0 && (
+        {!loading && !error && filteredGroups.length > 0 && (
           <div className="flex-1 overflow-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/80">
-                  {COLUMNS.map((col, i) => (
+                  {columnsToRender.map((col, i) => (
                     <th key={i} className="px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                       {col}
                     </th>
@@ -307,8 +385,8 @@ export default function Groups() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-50">
-                {groups.map((group) => (
-                  <GroupRow key={group.id} group={group} />
+                {filteredGroups.map((group, index) => (
+                  <GroupRow key={group.id} group={{ ...group, index }} />
                 ))}
               </tbody>
             </table>
@@ -318,11 +396,13 @@ export default function Groups() {
 
       <div className="h-5" />
 
-      <AddGroupDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onSuccess={() => setRefetch((n) => n + 1)}
-      />
+      {role === "admin" && (
+        <AddGroupDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          onSuccess={() => setRefetch((n) => n + 1)}
+        />
+      )}
     </div>
   );
 }

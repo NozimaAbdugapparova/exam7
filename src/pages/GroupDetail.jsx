@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, X, Plus, BarChart2 } from "lucide-react";
 import GroupLessons from "../components/GroupLessons";
+import { useAuth } from "../contexts/AuthContext";
 
 const BASE = "http://localhost:3000";
 
@@ -369,10 +370,18 @@ export default function GroupDetail() {
   const { id }   = useParams();
   const navigate = useNavigate();
 
+  const { role: rawRole } = useAuth();
+  const role = rawRole?.toLowerCase();
+  
   const [group,        setGroup]        = useState(null);
   const [studentCount, setStudentCount] = useState(0);   // ✅ haqiqiy o'quvchilar soni
   const [loading,      setLoading]      = useState(true);
-  const [activeTab,    setActiveTab]    = useState(0);
+  const [activeTab,    setActiveTab]    = useState(role === "student" ? 1 : 0);
+
+  useEffect(() => {
+    if (role === "student") setActiveTab(1);
+    else setActiveTab(0);
+  }, [role]);
 
   useEffect(() => {
     if (!id) return;
@@ -414,22 +423,24 @@ export default function GroupDetail() {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="px-5 border-b border-gray-200 flex gap-1">
-        {TABS.map((tab, i) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(i)}
-            className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === i
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {/* Tabs - Hidden for students */}
+      {role !== "student" && (
+        <div className="px-5 border-b border-gray-200 flex gap-1">
+          {TABS.map((tab, i) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(i)}
+              className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === i
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Content */}
       {loading ? (

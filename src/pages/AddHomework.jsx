@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Upload, ChevronDown, Bold, Italic, Underline,
   Strikethrough, Quote, Code, Link, List, ListOrdered,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify, X,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, X, Video
 } from "lucide-react";
 
 const BASE = "http://localhost:3000";
@@ -247,16 +247,17 @@ export default function AddHomeworkPage() {
           <input
             ref={fileRef}
             type="file"
+            accept="video/*"
             className="hidden"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-lg py-4 text-sm text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+            className="w-full flex items-center justify-center gap-2 border border-dashed border-blue-200 bg-blue-50/30 rounded-lg py-5 text-sm text-blue-600 hover:bg-blue-50 hover:border-blue-300 transition-colors"
           >
-            <Upload size={15} />
-            {file ? file.name : "Fayl yuklash"}
+            <Video size={18} />
+            {file ? file.name : "Video yuklash"}
           </button>
           {file && (
             <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
